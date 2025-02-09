@@ -60,13 +60,15 @@ function App() {
   };
 
   // NOTE: function for getting products
-  const getProductsData = async () => {
+  const getProductsData = async (page = 1) => {
     try {
       const response = await axios.get(
         // `${API_BASE}/api/${API_PATH}/products/all`,
-        `${API_BASE}/api/${PROJECT_API_PATH}/admin/products`,
+        `${API_BASE}/api/${PROJECT_API_PATH}/admin/products?page=${page}`,
       );
+      console.log(response.data.pagination);
       setProducts(response.data.products);
+      setPagesInfo(response.data.pagination);
     } catch (error) {
       alert(error.response.data.message);
     }
@@ -245,6 +247,37 @@ function App() {
     }
   };
 
+  // TODO: setting pagination info
+  const [pagesInfo, setPagesInfo] = useState({});
+  const handlePageChange = (page) => {
+    getProductsData(page);
+  };
+
+  // TODO: file upload
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+
+    const imageFormData = new FormData();
+
+    imageFormData.append("file-to-upload", file);
+    console.log(imageFormData.get("file-to-upload"));
+
+    try {
+      const res = await axios.post(
+        `${API_BASE}/api/${PROJECT_API_PATH}/admin/upload`,
+        imageFormData,
+      );
+      console.log(res);
+      const imageUrl = res.data.imageUrl;
+      setTempProduct({
+        ...tempProduct,
+        imageUrl: imageUrl,
+      });
+    } catch (error) {
+      console.log(error.response.data.message);
+    }
+  };
+
   return (
     <>
       {isAuth ? (
@@ -316,6 +349,56 @@ function App() {
               </table>
             </div>
           </div>
+          <div className="d-flex justify-content-center">
+            <nav>
+              <ul className="pagination">
+                <li className={`page-item ${!pagesInfo.has_pre && "disabled"}`}>
+                  <a
+                    onClick={() => {
+                      handlePageChange(pagesInfo.current_page - 1);
+                    }}
+                    className="page-link"
+                  >
+                    上一頁
+                  </a>
+                </li>
+
+                {Array.from({ length: pagesInfo.total_pages }).map(
+                  (_, index) => {
+                    return (
+                      <>
+                        <li
+                          className={`page-item ${pagesInfo.current_page === index + 1 && "active"}`}
+                        >
+                          <a
+                            onClick={() => {
+                              handlePageChange(index + 1);
+                            }}
+                            className="page-link"
+                          >
+                            {index + 1}
+                          </a>
+                        </li>
+                      </>
+                    );
+                  },
+                )}
+
+                <li
+                  className={`page-item ${!pagesInfo.has_next && "disabled"}`}
+                >
+                  <a
+                    onClick={() => {
+                      handlePageChange(pagesInfo.current_page + 1);
+                    }}
+                    className="page-link"
+                  >
+                    下一頁
+                  </a>
+                </li>
+              </ul>
+            </nav>
+          </div>
         </div>
       ) : (
         <div className="container login mt-5">
@@ -383,6 +466,19 @@ function App() {
             <div className="modal-body p-4">
               <div className="row g-4">
                 <div className="col-md-4">
+                  <div className="mb-5">
+                    <label htmlFor="fileInput" className="form-label">
+                      {" "}
+                      圖片上傳{" "}
+                    </label>
+                    <input
+                      type="file"
+                      accept=".jpg,.jpeg,.png"
+                      className="form-control"
+                      id="fileInput"
+                      onChange={handleFileChange}
+                    />
+                  </div>
                   <div className="mb-4">
                     <label htmlFor="primary-image" className="form-label">
                       主圖
