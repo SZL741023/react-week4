@@ -26,6 +26,7 @@ function ProductPagination({ pagesInfo, getProductsData }) {
               return (
                 <>
                   <li
+                    key={index + 1}
                     className={`page-item ${pagesInfo.current_page === index + 1 && "active"}`}
                   >
                     <a

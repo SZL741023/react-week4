@@ -1,20 +1,96 @@
 import { useRef, useEffect, useState } from "react";
+import { Modal } from "bootstrap";
 import axios from "axios";
+import PropTypes from "prop-types";
 
 const API_BASE = import.meta.env.VITE_API_BASEURL;
 
 const PROJECT_API_PATH = import.meta.env.VITE_API_PATH;
-function ProductModal() {
+
+function ProductModal({
+  modalMode,
+  tempProduct,
+  getProductsData,
+  isOpen,
+  setIsOpen,
+}) {
+  // NOTE: product modal
+  const productModalRef = useRef(null);
+  const [modalData, setModalData] = useState(tempProduct);
+  useEffect(() => {
+    setModalData({
+      ...tempProduct,
+    });
+  }, [tempProduct]);
+
+  const handleModalInputChange = (e) => {
+    const { value, name, checked, type } = e.target;
+    setModalData({
+      ...modalData,
+      [name]: type === "checkbox" ? checked : value,
+    });
+  };
+
+  const handleAddImage = () => {
+    const newImages = [...modalData.imagesUrl, ""];
+    setModalData({
+      ...modalData,
+      imagesUrl: newImages,
+    });
+  };
+
+  const handleRemoveImage = () => {
+    const newImages = [...modalData.imagesUrl];
+    newImages.pop();
+    setModalData({
+      ...modalData,
+      imagesUrl: newImages,
+    });
+  };
+
+  const handleImageChange = (e, index) => {
+    const { value } = e.target;
+    const newImages = [...modalData.imagesUrl];
+    newImages[index] = value;
+    setModalData({
+      ...modalData,
+      imagesUrl: newImages,
+    });
+  };
+
+  // NOTE: close product modal
+  const handleCloseProductModal = () => {
+    const modalInstance = Modal.getInstance(productModalRef.current);
+    modalInstance.hide();
+    setIsOpen(false);
+  };
+
+  const createProduct = async () => {
+    try {
+      await axios.post(`${API_BASE}/api/${PROJECT_API_PATH}/admin/product`, {
+        data: {
+          ...modalData,
+          origin_price: Number(modalData.origin_price),
+          price: Number(modalData.price),
+          is_enabled: modalData.is_enabled ? 1 : 0,
+        },
+      });
+    } catch (error) {
+      console.log(error.response.data.message);
+      alert("新增產品失敗");
+    }
+  };
+
   const updateProduct = async () => {
     try {
       await axios.put(
-        `${API_BASE}/api/${PROJECT_API_PATH}/admin/product/${tempProduct.id}`,
+        `${API_BASE}/api/${PROJECT_API_PATH}/admin/product/${modalData.id}`,
         {
           data: {
-            ...tempProduct,
-            origin_price: Number(tempProduct.origin_price),
-            price: Number(tempProduct.price),
-            is_enabled: tempProduct.is_enabled ? 1 : 0,
+            ...modalData,
+            origin_price: Number(modalData.origin_price),
+            price: Number(modalData.price),
+            is_enabled: modalData.is_enabled ? 1 : 0,
           },
         },
       );
@@ -34,6 +110,38 @@ function ProductModal() {
       alert("更新產品失敗");
     }
   };
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    const imageFormData = new FormData();
+    imageFormData.append("file-to-upload", file);
+
+    try {
+      const res = await axios.post(
+        `${API_BASE}/api/${PROJECT_API_PATH}/admin/upload`,
+        imageFormData,
+      );
+      const uploadImageUrl = res.data.imageUrl;
+      setModalData({
+        ...modalData,
+        imageUrl: uploadImageUrl,
+      });
+    } catch (error) {
+      alert(error.response.data.message);
+    }
+  };
+
+  useEffect(() => {
+    new Modal(productModalRef.current, {
+      backdrop: false,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      const modalInstance = Modal.getInstance(productModalRef.current);
+      modalInstance.show();
+    }
+  }, [isOpen]);
   return (
     <div
       ref={productModalRef}
@@ -76,7 +184,7 @@ function ProductModal() {
                   </label>
                   <div className="input-group">
                     <input
-                      value={tempProduct.imageUrl}
+                      value={modalData.imageUrl}
                       onChange={handleModalInputChange}
                       name="imageUrl"
                       type="text"
@@ -86,15 +194,15 @@ function ProductModal() {
                     />
                   </div>
                   <img
-                    src={tempProduct.imageUrl}
-                    alt={tempProduct.title}
+                    src={modalData.imageUrl}
+                    alt={modalData.title}
                     className="img-fluid"
                   />
                 </div>
 
                 {/* 副圖 */}
                 <div className="border border-2 border-dashed rounded-3 p-3">
-                  {tempProduct.imagesUrl?.map((image, index) => (
+                  {modalData.imagesUrl?.map((image, index) => (
                     <div key={index} className="mb-2">
                       <label
                         htmlFor={`imagesUrl-${index + 1}`}
@@ -120,10 +228,9 @@ function ProductModal() {
                     </div>
                   ))}
                   <div className="btn-group w-100">
-                    {tempProduct.imagesUrl.length < 5 &&
-                      tempProduct.imagesUrl[
-                        tempProduct.imagesUrl.length - 1
-                      ] !== "" && (
+                    {modalData.imagesUrl.length < 5 &&
+                      modalData.imagesUrl[modalData.imagesUrl.length - 1] !==
+                        "" && (
                         <button
                           onClick={handleAddImage}
                           className="btn btn-outline-primary btn-sm w-100"
@@ -132,7 +239,7 @@ function ProductModal() {
                         </button>
                       )}
 
-                    {tempProduct.imagesUrl.length > 1 && (
+                    {modalData.imagesUrl.length > 1 && (
                       <button
                         onClick={handleRemoveImage}
                         className="btn btn-outline-danger btn-sm w-100"
@@ -150,7 +257,7 @@ function ProductModal() {
                     標題
                   </label>
                   <input
-                    value={tempProduct.title}
+                    value={modalData.title}
                     onChange={handleModalInputChange}
                     name="title"
                     id="title"
@@ -165,7 +272,7 @@ function ProductModal() {
                     分類
                   </label>
                   <input
-                    value={tempProduct.category}
+                    value={modalData.category}
                     onChange={handleModalInputChange}
                     name="category"
                     id="category"
@@ -180,7 +287,7 @@ function ProductModal() {
                     單位
                   </label>
                   <input
-                    value={tempProduct.unit}
+                    value={modalData.unit}
                     onChange={handleModalInputChange}
                     name="unit"
                     id="unit"
@@ -196,7 +303,7 @@ function ProductModal() {
                       原價
                     </label>
                     <input
-                      value={tempProduct.origin_price}
+                      value={modalData.origin_price}
                       onChange={handleModalInputChange}
                       name="origin_price"
                       id="origin_price"
@@ -210,7 +317,7 @@ function ProductModal() {
                       售價
                     </label>
                     <input
-                      value={tempProduct.price}
+                      value={modalData.price}
                       onChange={handleModalInputChange}
                       name="price"
                       id="price"
@@ -226,7 +333,7 @@ function ProductModal() {
                     產品描述
                   </label>
                   <textarea
-                    value={tempProduct.description}
+                    value={modalData.description}
                     onChange={handleModalInputChange}
                     name="description"
                     id="description"
@@ -241,7 +348,7 @@ function ProductModal() {
                     說明內容
                   </label>
                   <textarea
-                    value={tempProduct.content}
+                    value={modalData.content}
                     onChange={handleModalInputChange}
                     name="content"
                     id="content"
@@ -253,7 +360,7 @@ function ProductModal() {
 
                 <div className="form-check">
                   <input
-                    checked={tempProduct.is_enabled}
+                    checked={modalData.is_enabled}
                     onChange={handleModalInputChange}
                     name="is_enabled"
                     type="checkbox"
@@ -289,5 +396,23 @@ function ProductModal() {
     </div>
   );
 }
+ProductModal.propTypes = {
+  modalMode: PropTypes.string,
+  tempProduct: PropTypes.shape({
+    imageUrl: PropTypes.string,
+    title: PropTypes.string,
+    category: PropTypes.string,
+    unit: PropTypes.string,
+    origin_price: PropTypes.number,
+    price: PropTypes.number,
+    description: PropTypes.string,
+    content: PropTypes.string,
+    is_enabled: PropTypes.number,
+    imagesUrl: PropTypes.arrayOf(PropTypes.string),
+  }),
+  getProductsData: PropTypes.func,
+  isOpen: PropTypes.bool,
+  setIsOpen: PropTypes.func,
+};
 
 export default ProductModal;
